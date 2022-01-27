@@ -83,19 +83,15 @@ public:
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-        for (const string& str : stop_words) {
-            if (!IsValidWord(str)) {
-                throw invalid_argument("unexpected symbol in stop_words"s);
-            }
+        if (any_of(stop_words.begin(), stop_words.end(), [](string word) {
+            return !IsValidWord(word); })) {
+            throw invalid_argument("unexpected symbol in stop_words"s);
         }
     }
 
     explicit SearchServer(const string& stop_words_text)
         : SearchServer(SplitIntoWords(stop_words_text))  // Invoke delegating constructor from string container
     {
-        if (!IsValidWord(stop_words_text)) {
-            throw invalid_argument("unexpected symbol in stop_words"s);
-        }
     }
 
     void AddDocument(int document_id, const string& document, DocumentStatus status,
@@ -103,13 +99,7 @@ public:
         if ((document_id < 0) || (documents_.count(document_id) > 0)) {
             throw invalid_argument("document_id is out of range"s);
         }
-        vector<string> words;
-        try {
-            SplitIntoWordsNoStop(document, words);
-        }
-        catch (const exception& e) {
-            throw invalid_argument(e.what() + " in document"s);
-        }
+        vector<string> words = SplitIntoWordsNoStop(document);
 
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
@@ -120,15 +110,8 @@ public:
     }
 
     template <typename DocumentPredicate>
-    vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-        Query query;
-        try
-        {
-            ParseQuery(raw_query, query);
-        }
-        catch (const exception& e) {
-            throw invalid_argument(e.what());
-        }
+    [[nodiscard]] vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
+        Query query = ParseQuery(raw_query);
         auto matched_documents = FindAllDocuments(query, document_predicate);
 
         sort(matched_documents.begin(), matched_documents.end(), [](const Document& lhs, const Document& rhs) {
@@ -145,7 +128,7 @@ public:
         return matched_documents;
     }
 
-    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const {
+    [[nodiscard]] vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const {
         return FindTopDocuments(
             raw_query,
             [status](int document_id, DocumentStatus document_status, int rating) {
@@ -153,7 +136,7 @@ public:
             });
     }
 
-    vector<Document> FindTopDocuments(const string& raw_query) const {
+    [[nodiscard]] vector<Document> FindTopDocuments(const string& raw_query) const {
         return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
     }
 
@@ -162,23 +145,11 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        try {
-            return document_ids_.at(index);
-        }
-        catch (out_of_range& e)
-        {
-            throw out_of_range(e.what());
-        }
+        return document_ids_.at(index);
     }
 
-    tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
-        Query query;
-        try {
-            ParseQuery(raw_query, query);
-        }
-        catch (const exception& e) {
-            throw invalid_argument(e.what());
-        }
+    [[nodiscard]] tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
+        Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
@@ -221,8 +192,7 @@ private:
             });
     }
 
-    void SplitIntoWordsNoStop(const string& text, vector<string>& result) const {
-        result.clear();
+    vector<string> SplitIntoWordsNoStop(const string& text) const {
         vector<string> words;
         for (const string& word : SplitIntoWords(text)) {
             if (!IsValidWord(word)) {
@@ -232,7 +202,7 @@ private:
                 words.push_back(word);
             }
         }
-        result.swap(words);
+        return words;
     }
 
     static int ComputeAverageRating(const vector<int>& ratings) {
@@ -252,10 +222,7 @@ private:
         bool is_stop;
     };
 
-    void ParseQueryWord(string text, QueryWord& result) const {
-        // Empty result by initializing it with default constructed QueryWord
-        result = {};
-
+    QueryWord ParseQueryWord(string text) const {
         if (text.empty()) {
             throw invalid_argument("unexpected symbol"s);
         }
@@ -267,8 +234,7 @@ private:
         if (text.empty() || text[0] == '-' || !IsValidWord(text)) {
             throw invalid_argument("unexpected symbol"s);
         }
-
-        result = QueryWord{ text, is_minus, IsStopWord(text) };
+        return QueryWord{ text, is_minus, IsStopWord(text) };
     }
 
     struct Query {
@@ -276,17 +242,11 @@ private:
         set<string> minus_words;
     };
 
-    void ParseQuery(const string& text, Query& result) const {
-        // Empty result by initializing it with default constructed Query
-        result = {};
+    Query ParseQuery(const string& text) const {
+        Query result;
         for (const string& word : SplitIntoWords(text)) {
-            QueryWord query_word;
-            try {
-                ParseQueryWord(word, query_word);
-            }
-            catch (const exception& e) {
-                throw invalid_argument(e.what());
-            }
+            QueryWord query_word = ParseQueryWord(word);
+
             if (!query_word.is_stop) {
                 if (query_word.is_minus) {
                     result.minus_words.insert(query_word.data);
@@ -296,6 +256,7 @@ private:
                 }
             }
         }
+        return result;
     }
 
     // Existence required
