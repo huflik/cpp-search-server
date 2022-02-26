@@ -2,11 +2,11 @@
 
 using namespace std;
 
- Document::Document(int id, double relevance, int rating)
-        : id(id)
-        , relevance(relevance)
-        , rating(rating) {
-    }
+Document::Document(int id, double relevance, int rating)
+    : id(id)
+    , relevance(relevance)
+    , rating(rating) {
+}
 
 ostream& operator<<(ostream& out, const Document& document) {
     out << "{ "s
@@ -33,4 +33,3 @@ void PrintMatchDocumentResult(int document_id, const vector<string>& words, Docu
     }
     cout << "}"s << endl;
 }
-

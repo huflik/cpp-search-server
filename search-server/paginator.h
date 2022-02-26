@@ -1,6 +1,6 @@
 #pragma once
+
 #include <iostream>
-#include <cmath>
 
 template <typename Iterator>
 class IteratorRange {

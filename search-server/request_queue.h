@@ -1,4 +1,5 @@
 #pragma once
+
 #include "search_server.h"
 
 #include <deque>
@@ -7,6 +8,7 @@ class RequestQueue {
 public:
     explicit RequestQueue(const SearchServer& search_server);
     // сделаем "обёртки" для всех методов поиска, чтобы сохранять результаты для нашей статистики
+
     template <typename DocumentPredicate>
     std::vector<Document> AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate); 
 
@@ -27,7 +29,7 @@ private:
     int count_empty_requests_;
     uint64_t current_time_;
 };
-// сделаем "обёртки" для всех методов поиска, чтобы сохранять результаты для нашей статистики
+
 template <typename DocumentPredicate>
 std::vector<Document> RequestQueue::AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate) {
     std::vector<Document> request = search_server_.FindTopDocuments(raw_query, document_predicate);
@@ -39,7 +41,7 @@ std::vector<Document> RequestQueue::AddFindRequest(const std::string& raw_query,
     else {
         requests_.push_back({ false, current_time_ });
     }
-    // pop old request
+
     if (min_in_day_ <= current_time_ - requests_.front().timestamp) {
         if (requests_.front().empty_request_) {
             --count_empty_requests_;

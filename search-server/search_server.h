@@ -1,4 +1,5 @@
 #pragma once
+
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -32,9 +33,15 @@ public:
 
     int GetDocumentCount() const;
 
-    int GetDocumentId(int index) const;
-
     std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(const std::string& raw_query, int document_id) const;
+
+    std::set<int>::const_iterator begin() const;
+
+    std::set<int>::const_iterator end() const;
+
+    const std::map<std::string, double>& GetWordFrequencies(int document_id) const;
+
+    void RemoveDocument(int document_id);
 
 private:
     struct DocumentData {
@@ -42,9 +49,12 @@ private:
         DocumentStatus status;
     };
     const std::set<std::string> stop_words_;
+
     std::map<std::string, std::map<int, double>> word_to_document_freqs_;
-    std::map<int, DocumentData> documents_;
-    std::vector<int> document_ids_;
+
+    std::map<int, std::map<std::string, double>> id_to_document_freqs_;
+    std::map<int, DocumentData> documents_;   
+    std::set<int> document_ids_;
 
     bool IsStopWord(const std::string& word) const;
 
@@ -69,7 +79,6 @@ private:
 
     Query ParseQuery(const std::string& text) const;
 
-    // Existence required
     double ComputeWordInverseDocumentFreq(const std::string& word) const;
 
     template <typename DocumentPredicate>
@@ -78,7 +87,7 @@ private:
 
 template <typename StringContainer>
 SearchServer::SearchServer(const StringContainer& stop_words)
-    : stop_words_(MakeUniqueNonEmptyStrings(stop_words))  // Extract non-empty stop words
+    : stop_words_(MakeUniqueNonEmptyStrings(stop_words))
 {
     if (!all_of(stop_words_.begin(), stop_words_.end(), IsValidWord)) {
         throw std::invalid_argument("Some of stop words are invalid");
@@ -92,7 +101,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_quer
     auto matched_documents = FindAllDocuments(query, document_predicate);
 
     sort(matched_documents.begin(), matched_documents.end(), [](const Document& lhs, const Document& rhs) {
-        if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+        if (std::abs(lhs.relevance - rhs.relevance) < 1e-6) {
             return lhs.rating > rhs.rating;
         }
         else {
@@ -137,7 +146,3 @@ std::vector<Document> SearchServer::FindAllDocuments(const Query& query, Documen
     }
     return matched_documents;
 }
-
-void AddDocument(SearchServer& search_server, int document_id, const std::string& document, DocumentStatus status, const std::vector<int>& ratings);
-void FindTopDocuments(const SearchServer& search_server, const std::string& raw_query);
-void MatchDocuments(const SearchServer& search_server, const std::string& query);
