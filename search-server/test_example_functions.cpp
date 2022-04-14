@@ -14,7 +14,7 @@ void AddDocument(SearchServer& search_server, int document_id, const string& doc
 }
 
 void FindTopDocuments(const SearchServer& search_server, const string& raw_query) {
-    LOG_DURATION_STREAM("Operation time", std::cout);
+    LOG_DURATION_STREAM("Operation time", cout);
     cout << "Результаты поиска по запросу: "s << raw_query << endl;
     try {
         for (const Document& document : search_server.FindTopDocuments(raw_query)) {
@@ -27,7 +27,7 @@ void FindTopDocuments(const SearchServer& search_server, const string& raw_query
 }
 
 void MatchDocuments(SearchServer& search_server, const string& query) {
-    LOG_DURATION_STREAM("Operation time", std::cout);
+    LOG_DURATION_STREAM("Operation time", cout);
     try {
         cout << "Матчинг документов по запросу: "s << query << endl;
         for (const int document_id : search_server) {
